@@ -4,32 +4,55 @@ import pump from '../../assets/image15.png';
 import schedule from '../../assets/image16.png';
 import { useEffect, useState } from 'react';
 import { controlPump, getStatusPump } from '../../services/Api';
+import { notification } from 'antd'
 
 export default function Pump() {
-    const [isOn, setIsOn] = useState(false);
-    const [changePump, setChangePump] = useState(false)
+    const [isOn, setIsOn] = useState(true);
+    // const [changePump, setChangePump] = useState("0")
     useEffect(() => {
         const fetchStatusPump = async () => {
             const res = await getStatusPump()
-            console.log(res.data)
-            setIsOn(res.data[0].value)
+            // console.log(res.data)
+            setIsOn(Boolean(Number(res.data[0].value)));
+
         }
         fetchStatusPump();
-    }, [changePump])
-    // const handleChangePump = async () => {
-    //     setChangePump(!isOn)
-    //     const result = await controlPump(changePump)
-    //     console.log(result)
-    // }
+    }, [isOn])
+    const handleChangePump = async () => {
+        console.log(isOn)
+
+        // console.log(changePump)
+        const newStatus = !isOn;
+        const result = await controlPump(newStatus ? "1" : "0")
+        // console.log(result.data.value)
+        setIsOn(Boolean(Number(result.data.value)))
+
+        if (newStatus) {
+            notification.success({
+                // message: "Thành công",
+                description: "Máy bơm đang bật!"
+            })
+        }
+        else {
+            notification.error({
+                // message: "Thất bại",
+                description: "Máy bơm đã tắt!"
+            })
+        }
+    }
+
 
     return (
         <div className='pump'>
             <div className='pump-control'>
                 <img src={pump} alt="img" />
-                <h3>Trạng thái:{isOn}</h3>
+                <h3 style={{ textAlign: "center", color: isOn ? "#28a745" : "#888" }}>
+                    Trạng thái: {isOn ? "Đang bơm" : "Đã tắt"}
+                </h3>
+
                 <div className='pump-button'>
-                    <button className='button on-pump' onClick={() => controlPump(1)}>BẬT</button>
-                    <button className='button off-pump' onClick={() => controlPump(0)}>TẮT</button>
+                    <button className={`button ${isOn ? "off-pump" : "on-pump"}`} onClick={handleChangePump}>{isOn ? "TẮT" : "BẬT"}</button>
+
                 </div>
 
             </div>
@@ -39,10 +62,6 @@ export default function Pump() {
                     <button className='button link-watering'>
                         <NavLink to="/watering">Tạo/Xem lịch tưới</NavLink>
                     </button>
-                    {/* <button className='button link-watering'>
-                        <NavLink to="/---">Lịch tưới hôm nay</NavLink>
-                        
-                    </button> */}
                 </div>
 
             </div>

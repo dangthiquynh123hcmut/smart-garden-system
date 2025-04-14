@@ -62,7 +62,7 @@ export const getStatusPump = async()=>{
     const response = await axios.get("https://io.adafruit.com/api/v2/NgoKhang/feeds/pump/data")
     return response
 }
-
+const API_KEY = import.meta.env.VITE_ADAFRUIT_IO_KEY;
 export const controlPump = async(status)=>{
   
     try {
@@ -71,13 +71,14 @@ export const controlPump = async(status)=>{
             { value: status },
             {
                 headers: {
-                    "X-AIO-Key":KEY_KEY,
+                    "X-AIO-Key": API_KEY,
                     "Content-Type": "application/json",
                 }
             }
         );
 
         console.log("Response:", response);
+        return response
     } catch (error) {
         console.error("Error:", error.response ? error.response.data : error.message);
     }
