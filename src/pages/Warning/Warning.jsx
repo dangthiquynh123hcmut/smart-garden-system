@@ -1,174 +1,143 @@
-import "./Warning.css"
-import { Form, Button, Input} from "antd";
-import {  DatePicker, Select, Table } from "antd";
+import "./Warning.css";
+import { Button, DatePicker, Table } from "antd";
 import { useEffect, useState } from "react";
-
 import dayjs from "dayjs";
-import { notification } from "antd";
-import { FilterOutlined } from '@ant-design/icons'
-import { getWarning, postWarning } from "../../services/Api";
+import { FilterOutlined } from '@ant-design/icons';
+import { getWarning } from "../../services/Api";
+import { useNotification } from "../../components/Context/WarningContext";
 
 export default function Warning() {
-    const [changeData, setChangeData] = useState(false);
-    const [data, setData] = useState([])
+  const { newWarningTrigger } = useNotification();
+  const [data, setData] = useState([]); 
+  const [filteredData, setFilteredData] = useState([]); 
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null); 
+  const token = localStorage.getItem("token");
 
+  const columns = [
+    {
+      title: 'Loại cảnh báo',
+      dataIndex: 'sensorType',
+      key: 'sensorType',
+    },
+    {
+      title: 'Giá trị',
+      dataIndex: 'currentValue',
+      key: 'currentValue',
+    },
+    {
+      title: 'Ngày tháng',
+      dataIndex: 'timestamp',
+      key: 'timestamp',
+      render: (date) => dayjs(date).format('DD/MM/YYYY'),
+    },
+    {
+      title: 'Thời gian',
+      dataIndex: 'timestamp',
+      key: 'timestamp',
+      render: (date) => dayjs(date).format('HH:mm:ss'),
+    },
+    {
+      title: 'Lí do',
+      dataIndex: 'message',
+      key: 'message',
+    },
+  ];
 
-    const columns = [
-        {
-            title: 'Loại cảnh báo',
-            dataIndex: 'sensorType',
-            key: 'sensorType',
-        },
-        {
-            title: 'Giá trị',
-            dataIndex: 'currentValue',
-            key: 'currentValue',
-        },
-        {
-            title: 'Thời gian',
-            dataIndex: 'timestamp',
-            key: 'timestamp',
-            render: (date) => dayjs(date).format('DD/MM/YYYY'),
-        },
-        {
-            title: 'Lí do',
-            dataIndex: 'message',
-            key: 'message',
-        }
-    ];
+  
+  const fetchData = async () => {
+    try {
+      const response = await getWarning(token);
+      setData(response.data);
+      setFilteredData(response.data); 
+    } catch (error) {
+      console.error('Lỗi khi lấy dữ liệu cảnh báo:', error);
+    }
+  };
 
+  
+  useEffect(() => {
+    fetchData();
+  }, [token, newWarningTrigger]);
 
-    useEffect(() => {
-        const getData = async () => {
-
-            const response = await getWarning();
-            setData(response.data)
-        }
-
-        getData();
-    }, [changeData])
-    const handleSubmitForm = async (values) => {
-        console.log(values);
-        const formSunmit = {
-            sensorType: values.sensorType,
-            currentValue: Number(values.currentValue),
-            message: values.message
-        }
-        try {
-            const response = await postWarning(formSunmit)
-            setChangeData(!changeData)
-            console.log("hi", response)
-            notification.success({
-                message: 'Thành công',
-                description: 'Tạo cảnh báo thành công!'
-            })
-        } catch (error) {
-            notification.error({
-                message: "Có lỗi xảy ra",
-                description: error?.response?.data?.error || error.message || "Lỗi không xác định"
-            });
-        }
-
+ 
+  const handleSearch = () => {
+    if (!startDate && !endDate) {
+      setFilteredData(data); 
+      return;
     }
 
-    const formattedData = data.map((item) => ({
-        ...item,
-        key: item.warningId,
-    }));
-    return (
-        <div className="all-watering">
+    const filtered = data.filter((item) => {
+      const itemDate = dayjs(item.timestamp);
+      const start = startDate ? dayjs(startDate).startOf('day') : null;
+      const end = endDate ? dayjs(endDate).endOf('day') : null;
 
-            <div className='history-watering'>
-                <div className='filter-watering'>
-                    <DatePicker placeholder='Chọn ngày' />
-                    <DatePicker picker='month' placeholder='Chọn tháng' />
-                    <Button type='primary'>Tìm kiếm <FilterOutlined /></Button>
-                </div>
-                <div className='table-watering'>
-                    <h2>LỊCH SỬ CẢNH BÁO</h2>
-                    <Table
-                        columns={columns}
-                        dataSource={formattedData}
-                        pagination={true}
-                        scroll={{ y: 300 }}
-                    />
-                </div>
-            </div>
-            <div className="watering">
-                <div className="watering-form">
-                    <div className="watering-titile">
-                        <h2 > TẠO CẢNH BÁO </h2>
-                        <hr />
-                    </div>
+     
+      if (start && end) {
+        return itemDate.isAfter(start) && itemDate.isBefore(end);
+      }
+      if (start) {
+        return itemDate.isSame(start, 'day') || itemDate.isAfter(start);
+      }
+      if (end) {
+        return itemDate.isSame(end, 'day') || itemDate.isBefore(end);
+      }
+      return true;
+    });
 
-                    <Form layout='vertical' size='large' onFinish={handleSubmitForm} >
-                        <Form.Item
-                            label="Loại xét ngưỡng"
-                            name="sensorType"
-                            rules={[{ required: true, message: "Vui lòng chọn loại xét ngưỡng!" }]}
-                        >
-                            <Select
-                                placeholder="Chọn loại xét ngưỡng"
-                                options={[
-                                    {
-                                        value: 'temperature',
-                                        label: 'Nhiệt độ',
-                                    },
-                                    {
-                                        value: 'soilMoisture',
-                                        label: 'Độ ẩm đất',
-                                    },
-                                    {
-                                        value: 'humidity',
-                                        label: 'Độ ẩm không khí',
-                                    },
-                                ]}
-                            />
-                        </Form.Item>
-                        <Form.Item
-                            label="Giá trị hiện tại"
-                            name="currentValue"
-                            rules={[
-                                { required: true, message: "Vui lòng nhập giá trị hiện tại!" },
-                                {
-                                    validator: (_, value) => {
-                                        if (!value || isNaN(value)) {
-                                            return Promise.reject(new Error("Giá trị phải là số!"));
-                                        }
-                                        const numValue = Number(value);
-                                        if (numValue < 0 || numValue > 100) {
-                                            return Promise.reject(new Error("Giá trị phải từ 0 đến 100!"));
-                                        }
-                                        return Promise.resolve();
-                                    }
-                                }
-                            ]}
-                        >
-                            <Input placeholder="Nhập giá trị hiện tại" />
-                        </Form.Item>
-                        <Form.Item
-                            label="Lí do"
-                            name="message"
-                            rules={[
-                                { required: true, message: "Vui lòng nhập lí do!" },
-                            ]}
-                        >
-                            <Input placeholder="Nhập lí do tạo cảnh báo" />
-                        </Form.Item>
+    setFilteredData(filtered); 
+  };
 
-                        <Form.Item>
-                            <div className='submit-watering'>
-                                <Button type="primary" htmlType="submit" >
-                                    Tạo cảnh báo
-                                </Button>
-                            </div>
+  
+  const handleClearFilter = () => {
+    setStartDate(null);
+    setEndDate(null);
+    setFilteredData(data); 
+  };
 
-                        </Form.Item>
-                    </Form>
-                </div>
-            </div>
+ 
+  const handleStartDateChange = (date) => {
+    setStartDate(date);
+  };
+
+  
+  const handleEndDateChange = (date) => {
+    setEndDate(date);
+  };
+
+  return (
+    <div className="all-watering">
+      <div className='history-watering'>
+        <div className='filter-watering'>
+          <DatePicker
+            placeholder='Chọn ngày bắt đầu'
+            onChange={handleStartDateChange}
+            value={startDate}
+            format="DD/MM/YYYY"
+          />
+          <DatePicker
+            placeholder='Chọn ngày kết thúc'
+            onChange={handleEndDateChange}
+            value={endDate}
+            format="DD/MM/YYYY"
+          />
+          <Button type='primary' onClick={handleSearch}>
+            Tìm kiếm <FilterOutlined />
+          </Button>
+          <Button onClick={handleClearFilter}>Xóa bộ lọc</Button>
         </div>
-
-    );
+        <div className='table-watering'>
+          <h2>LỊCH SỬ CẢNH BÁO</h2>
+          <Table
+            columns={columns}
+            dataSource={filteredData.map((item, index) => ({ ...item, key: index }))}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: false,
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
 }
-
